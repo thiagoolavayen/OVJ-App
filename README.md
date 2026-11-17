@@ -1,5 +1,17 @@
 # OVJ App · Ovejeros FC
 
+## Descargar e instalar
+
+[Descargar ZIP del instalador para Windows](https://github.com/thiagoolavayen/OVJ-App/releases/download/v0.1.2/OVJ-App-0.1.2-Instalador-Windows.zip) · [Ver la versión y otras descargas](https://github.com/thiagoolavayen/OVJ-App/releases/tag/v0.1.2)
+
+Extraé el ZIP y abrí el archivo Setup-Preview.exe. No necesitás Node.js. Para abrir sin instalar, elegí el portable en la página de la versión.
+
+Compilaciones preliminares sin firma. Las pruebas automatizadas en Windows no sustituyen una partida real ni mediciones de latencia.
+
+![Configuración de OVJ App con el escudo original de Ovejeros FC](docs/captura.png)
+
+Captura de la configuración real en el entorno de desarrollo Linux.
+
 Primera versión de un cliente de escritorio para HaxBall, preparado para Windows 10/11 x64. Carga el juego desde su sitio oficial, conserva aceleración por hardware y utiliza Electron **45.3.3** con Chromium versionado. La elección busca compatibilidad y pruebas reproducibles; no se ha demostrado menor input lag, ping ni mejor rendimiento que Chrome o Edge.
 
 Incluye preferencias persistentes, pantalla completa, recuperación explícita ante errores, Discord Rich Presence por IPC local y diseños personales de pelota. No implementa macros, automatización de movimientos, cambios de físicas ni manipulación de paquetes.

@@ -1,0 +1,57 @@
+name: Publish OVJ App 0.1.2 download
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-initial.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Wait for the verified Windows build
+        run: gh run watch 44019118359 --repo "$GH_REPO" --exit-status --interval 10
+      - name: Download the Windows binaries from that build
+        uses: actions/download-artifact@v4
+        with:
+          name: OVJ-App-Windows-x64
+          run-id: 44019118359
+          github-token: ${{ github.token }}
+          path: binaries
+      - name: Package the installer ZIP and checksums
+        shell: python
+        run: |
+          from pathlib import Path
+          import hashlib, zipfile
+          folder = Path('binaries')
+          setup = folder / 'OVJ-App-0.1.2-x64-Setup-Preview.exe'
+          portable = folder / 'OVJ-App-0.1.2-x64-Portable-Preview.exe'
+          assert setup.is_file() and portable.is_file()
+          archive = folder / 'OVJ-App-0.1.2-Instalador-Windows.zip'
+          with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_STORED) as z:
+              z.write(setup, setup.name)
+              z.writestr('COMO-INSTALAR.txt', 'OVJ APP - OVEJEROS FC\n\n1. Extrae este ZIP.\n2. Abre el archivo Setup-Preview.exe.\n3. Sigue el asistente de instalacion.\n\nWindows 10/11 de 64 bits. No requiere Node.js.\nF10: ajustes. F11: pantalla completa.\n\nCompilacion preliminar sin firma. Las pruebas automatizadas no sustituyen una partida real ni benchmarks de latencia.\n')
+          with zipfile.ZipFile(archive) as z:
+              assert z.testzip() is None
+              assert hashlib.sha256(z.read(setup.name)).digest() == hashlib.sha256(setup.read_bytes()).digest()
+          checksums = ''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n' for p in [archive, portable])
+          (folder / 'SHA256SUMS.txt').write_text(checksums)
+      - name: Publish the downloadable files
+        shell: bash
+        run: |
+          draft=$(gh release view v0.1.2 --json isDraft --jq .isDraft)
+          if [ "$draft" != "true" ]; then
+            echo 'The release is already published; existing assets will stay unchanged.'
+            exit 0
+          fi
+          gh release upload v0.1.2 binaries/OVJ-App-0.1.2-Instalador-Windows.zip binaries/OVJ-App-0.1.2-x64-Portable-Preview.exe binaries/SHA256SUMS.txt
+          gh release edit v0.1.2 --draft=false --prerelease --target c328be7c5db77f8ad2f64eb30ab375ac49a34cf7

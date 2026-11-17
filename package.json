@@ -1,0 +1,33 @@
+{
+  "name": "ovj-app",
+  "version": "0.1.2",
+  "private": true,
+  "description": "Cliente de escritorio de HaxBall para Ovejeros FC, con configuración conservadora y mediciones reproducibles.",
+  "author": "Ovejeros FC",
+  "license": "UNLICENSED",
+  "main": "src/main.cjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "check": "node tools/check.cjs",
+    "test:electron": "node tools/smoke-electron.cjs",
+    "benchmark": "node tools/analyze-benchmark.cjs",
+    "benchmark:browser": "node tools/browser-benchmark.cjs",
+    "branding": "node tools/set-branding.cjs",
+    "dist:win": "node tools/set-branding.cjs --check && electron-builder --win --x64 --publish never",
+    "dist:win:preview": "node tools/build-preview.cjs",
+    "pack:win": "node tools/set-branding.cjs --check && electron-builder --win --x64 --dir --publish never"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "electron": "45.3.3",
+    "electron-builder": "26.18.0",
+    "pe-library": "0.4.1",
+    "png-to-ico": "3.0.2",
+    "resedit": "1.7.2",
+    "js-yaml": "4.3.2"
+  }
+}

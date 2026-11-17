@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data: 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+    <title>Configuración · OVJ App</title>
+    <link rel="stylesheet" href="settings.css">
+    <script src="settings-renderer.js" defer></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <img id="brand-logo" class="brand-logo" alt="Escudo de Ovejeros FC" hidden>
+        <div class="brand-copy">
+          <p class="eyebrow">OVEJEROS FC</p>
+          <h1>OVJ APP</h1>
+          <p class="subtitle">Configuración del cliente</p>
+        </div>
+      </div>
+      <button id="close-settings" type="button" class="primary">Volver al juego <kbd>Esc</kbd></button>
+    </header>
+
+    <main>
+      <div id="error" class="notice error" role="alert" hidden></div>
+      <div id="success" class="notice success" role="status" aria-live="polite" hidden></div>
+      <div id="restart-notice" class="notice" hidden>
+        <p>El cambio de aceleración se aplicará al reiniciar. Se cerrará la sesión actual de HaxBall.</p>
+        <button id="restart" type="button">Reiniciar OVJ App</button>
+      </div>
+      <div id="reload-notice" class="notice" hidden>
+        <p>Recargá HaxBall para aplicar o retirar el adaptador de la pelota. Esto puede desconectarte de la sala.</p>
+        <button id="reload-game" type="button">Recargar HaxBall…</button>
+      </div>
+
+      <section aria-labelledby="performance-title">
+        <div class="section-heading">
+          <h2 id="performance-title">Juego y rendimiento</h2>
+          <button id="fullscreen" type="button">Pantalla completa <kbd>F11</kbd></button>
+        </div>
+        <form id="performance-form">
+          <label class="toggle">
+            <input id="competitive-mode" name="competitiveMode" type="checkbox">
+            <span><strong>Modo competitivo</strong><small>Desactiva los diseños de pelota y la toma de muestras de diagnóstico. Consultá las reglas de tu competición para usar cambios visuales.</small></span>
+          </label>
+          <label class="toggle">
+            <input id="hardware-acceleration" name="hardwareAcceleration" type="checkbox">
+            <span><strong>Aceleración por hardware</strong><small>Recomendada. Desactivala solo para diagnosticar problemas de GPU. Requiere reiniciar.</small></span>
+          </label>
+          <div class="form-footer"><button type="submit">Guardar preferencias</button><span class="hint">Sin ajustes experimentales de Chromium.</span></div>
+        </form>
+      </section>
+
+      <section aria-labelledby="ball-title">
+        <div class="section-heading"><h2 id="ball-title">Diseño de la pelota</h2><span class="badge">Solo visual y local</span></div>
+        <p>Elegí una imagen propia. Se recorta al círculo de la pelota y conserva su borde. No cambia físicas ni sincronización.</p>
+        <div class="skin-row">
+          <div class="ball-preview" aria-label="Vista previa del diseño"><img id="ball-preview" alt="Diseño seleccionado para la pelota" hidden><span id="ball-empty">Sin diseño</span></div>
+          <div class="skin-description">
+            <strong id="ball-name">Sin imagen seleccionada</strong>
+            <p class="hint">PNG, JPEG o WebP · máximo 8 MB · se guarda a 256 px</p>
+            <div class="button-row"><button id="choose-ball" type="button">Elegir imagen…</button><button id="remove-ball" type="button">Quitar diseño</button></div>
+          </div>
+        </div>
+        <form id="ball-form">
+          <label class="toggle">
+            <input id="ball-enabled" name="ballEnabled" type="checkbox">
+            <span><strong>Usar mi diseño</strong><small id="ball-mode-note">Disponible fuera del modo competitivo.</small></span>
+          </label>
+          <div class="form-footer"><button id="save-ball" type="submit">Guardar diseño</button></div>
+        </form>
+        <p id="ball-status" class="status" aria-live="polite">Comprobando compatibilidad…</p>
+        <p class="hint">El adaptador verifica la versión del juego. Si HaxBall cambia y no es compatible, se utiliza la pelota original.</p>
+      </section>
+
+      <section aria-labelledby="discord-title">
+        <div class="section-heading"><h2 id="discord-title">Discord</h2></div>
+        <form id="discord-form">
+          <label class="toggle">
+            <input id="discord-enabled" name="discordEnabled" type="checkbox">
+            <span><strong>Mostrar OVJ App en mi actividad</strong><small>Conexión local con Discord de escritorio. No requiere token ni contraseña.</small></span>
+          </label>
+          <div class="field-grid">
+            <label class="field" for="discord-client-id">Application ID<input id="discord-client-id" name="discordClientId" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" maxlength="20" pattern="[1-9][0-9]{16,19}" title="Entre 17 y 20 dígitos, sin cero inicial y hasta 18446744073709551615" placeholder="ID de la aplicación en Discord"></label>
+            <label class="field" for="discord-asset-key">Clave de la imagen<input id="discord-asset-key" name="discordAssetKey" type="text" autocomplete="off" spellcheck="false" maxlength="128" pattern="[a-zA-Z0-9_-]*" title="Letras, números, guiones y guiones bajos" placeholder="ovj_logo"></label>
+          </div>
+          <p class="hint">El nombre de la actividad y el logo se configuran en tu aplicación del portal de Discord. Podés jugar sin completar estos campos.</p>
+          <div class="form-footer"><button type="submit">Guardar Discord</button></div>
+        </form>
+        <p id="discord-status" class="status" aria-live="polite">Comprobando conexión…</p>
+      </section>
+
+      <section aria-labelledby="diagnostics-title">
+        <div class="section-heading"><h2 id="diagnostics-title">Diagnóstico opcional</h2><span id="benchmark-status" class="badge">Inactivo</span></div>
+        <p>Registra intervalos entre callbacks de <code>requestAnimationFrame</code>. Estos datos no miden FPS presentados, ping ni latencia de teclado.</p>
+        <p id="benchmark-note" class="hint">Desactivá el modo competitivo para iniciar una captura. La captura se detiene automáticamente para limitar el trabajo en segundo plano.</p>
+        <div class="button-row"><button id="benchmark-start" type="button">Iniciar captura</button><button id="benchmark-stop" type="button">Detener captura</button><button id="export-diagnostics" type="button">Exportar diagnóstico…</button></div>
+        <p class="hint">El menú se cierra al iniciar la captura para devolver el foco al juego.</p>
+      </section>
+    </main>
+
+    <footer>
+      <p class="footer-brand">OVJ APP <span aria-hidden="true">/</span> OVEJEROS FC</p>
+      <p><kbd>F10</kbd> Configuración <span aria-hidden="true">·</span> <kbd>F11</kbd> Pantalla completa <span aria-hidden="true">·</span> <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> Recargar con confirmación</p>
+      <p id="runtime" class="runtime">Cargando versión del cliente…</p>
+    </footer>
+  </body>
+</html>

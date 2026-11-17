@@ -1,0 +1,42 @@
+appId: ar.ovj.app
+productName: OVJ App
+copyright: Copyright © 2026 Ovejeros FC
+asar: true
+compression: maximum
+directories:
+  output: dist
+  buildResources: assets
+files:
+  - src/**
+  - assets/**
+  - package.json
+  - '!**/*.map'
+  - '!**/.DS_Store'
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: assets/icon.ico
+  requestedExecutionLevel: asInvoker
+  signtoolOptions:
+    publisherName: Ovejeros FC
+nsis:
+  artifactName: OVJ-App-${version}-${arch}-Setup.${ext}
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: OVJ App
+  installerIcon: assets/icon.ico
+  uninstallerIcon: assets/icon.ico
+  deleteAppDataOnUninstall: false
+portable:
+  artifactName: OVJ-App-${version}-${arch}-Portable.${ext}
+  requestExecutionLevel: user
+publish: null

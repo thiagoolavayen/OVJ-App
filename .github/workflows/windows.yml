@@ -1,0 +1,43 @@
+name: Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify application and branding
+        run: |
+          npm test
+          npm run check
+          npm run test:electron
+          node tools/set-branding.cjs --check
+      - name: Build installer and portable app
+        run: npm run dist:win:preview -- --installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Keep local build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OVJ-App-Windows-x64
+          path: |
+            dist-preview/*-Setup-Preview.exe
+            dist-preview/*-Portable-Preview.exe
+            dist-preview/preview-build-report.json
+          if-no-files-found: error
+          retention-days: 14

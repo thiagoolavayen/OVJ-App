@@ -19,12 +19,22 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - name: Wait for the verified Windows build
-        run: gh run watch 44019118359 --repo "$GH_REPO" --exit-status --interval 10
+        id: source
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            run_id=$(gh run list --repo "$GH_REPO" --workflow windows.yml --commit "${{ github.sha }}" --json databaseId --jq '.[0].databaseId // empty')
+            if [ -n "$run_id" ]; then break; fi
+            sleep 3
+          done
+          test -n "$run_id"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          gh run watch "$run_id" --repo "$GH_REPO" --exit-status --interval 10
       - name: Download the Windows binaries from that build
         uses: actions/download-artifact@v4
         with:
           name: OVJ-App-Windows-x64
-          run-id: 44019118359
+          run-id: ${{ steps.source.outputs.run_id }}
           github-token: ${{ github.token }}
           path: binaries
       - name: Package the installer ZIP and checksums
@@ -54,4 +64,4 @@ jobs:
             exit 0
           fi
           gh release upload v0.1.2 binaries/OVJ-App-0.1.2-Instalador-Windows.zip binaries/OVJ-App-0.1.2-x64-Portable-Preview.exe binaries/SHA256SUMS.txt
-          gh release edit v0.1.2 --draft=false --prerelease --target c328be7c5db77f8ad2f64eb30ab375ac49a34cf7
+          gh release edit v0.1.2 --draft=false --prerelease --target "${{ github.sha }}"

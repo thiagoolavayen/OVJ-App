@@ -28,7 +28,11 @@ jobs:
           npm run test:electron
           node tools/set-branding.cjs --check
       - name: Build installer and portable app
-        run: npm run dist:win:preview -- --installer
+        run: |
+          npm run dist:win:preview -- --installer
+          if ($LASTEXITCODE -ne 0) { throw "Windows build failed" }
+          if (-not (Test-Path "dist-preview/*-Setup-Preview.exe")) { throw "Installer missing" }
+          if (-not (Test-Path "dist-preview/*-Portable-Preview.exe")) { throw "Portable missing" }
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Keep local build artifacts

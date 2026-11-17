@@ -135,7 +135,7 @@ Section "OVJ App" InstallApp
   Call .onVerifyInstDir
   SetOutPath "$INSTDIR"
   SetOverwrite on
-  File /r "$%OVJ_PREVIEW_UNPACKED_DIR%/*"
+  File /r "$%OVJ_PREVIEW_FILE_GLOB%"
   FileOpen $0 "$INSTDIR\.ovj-installation" w
   FileWrite $0 "${OVJ_MARKER}"
   FileClose $0

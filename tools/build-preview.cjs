@@ -138,9 +138,11 @@ async function main(argv = process.argv.slice(2)) {
     const previousUnpacked = process.env.OVJ_PREVIEW_UNPACKED_DIR;
     const previousManifest = process.env.OVJ_PREVIEW_UNINSTALL_MANIFEST;
     const previousNodePath = process.env.OVJ_PREVIEW_NODE_PATH;
+    const previousGlob = process.env.OVJ_PREVIEW_FILE_GLOB;
     process.env.OVJ_PREVIEW_UNPACKED_DIR = unpacked;
     process.env.OVJ_PREVIEW_UNINSTALL_MANIFEST = manifest;
     process.env.OVJ_PREVIEW_NODE_PATH = process.execPath;
+    process.env.OVJ_PREVIEW_FILE_GLOB = path.join(unpacked, "*");
     try {
       await build({ projectDir, prepackaged: unpacked, targets: Platform.WINDOWS.createTarget(['nsis'], Arch.x64), config: installerConfig, publish: 'never' });
     } finally {
@@ -148,6 +150,8 @@ async function main(argv = process.argv.slice(2)) {
       else process.env.OVJ_PREVIEW_UNPACKED_DIR = previousUnpacked;
       if (previousManifest === undefined) delete process.env.OVJ_PREVIEW_UNINSTALL_MANIFEST;
       else process.env.OVJ_PREVIEW_UNINSTALL_MANIFEST = previousManifest;
+      if (previousGlob === undefined) delete process.env.OVJ_PREVIEW_FILE_GLOB;
+      else process.env.OVJ_PREVIEW_FILE_GLOB = previousGlob;
       if (previousNodePath === undefined) delete process.env.OVJ_PREVIEW_NODE_PATH;
       else process.env.OVJ_PREVIEW_NODE_PATH = previousNodePath;
     }
@@ -164,6 +168,6 @@ async function main(argv = process.argv.slice(2)) {
   return report;
 }
 
-if (require.main === module) main().catch(error => { console.error(error.stack); process.exitCode = 1; });
+if (require.main === module) main().catch(error => { console.error(error.stack); process.exit(1); });
 
 module.exports = { main, detectBranding, createPreviewConfig, createInstallerConfig };

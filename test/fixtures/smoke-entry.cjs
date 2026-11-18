@@ -1,8 +1,9 @@
 'use strict';
 // Offline integration fixture. Excluded from packaged applications.
-const { app, dialog, session } = require('electron');
+const { app, dialog, session, ipcMain, BrowserWindow } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 if (!process.env.OVJ_SMOKE_PROFILE) throw new Error('Falta el perfil temporal para smoke.');
 if (!process.env.OVJ_SMOKE_APP_ASAR) throw new Error('Falta el app.asar para smoke.');
 const archive = path.resolve(process.env.OVJ_SMOKE_APP_ASAR);
@@ -12,10 +13,35 @@ const applicationEntry = path.resolve(archive, metadata.main);
 if (!applicationEntry.startsWith(archive + path.sep)) throw new Error('Entrada del ASAR inválida.');
 app.setAppPath(archive);
 app.setPath('userData', path.resolve(process.env.OVJ_SMOKE_PROFILE));
-const state = { dialogs: [], keys: [], imagePath: null, exportPath: null, applicationEntry };
+const settingsExpectedUrl = pathToFileURL(path.join(path.dirname(applicationEntry), 'settings.html')).href;
+const resolvedApplicationEntry = require.resolve(applicationEntry);
+const resolvedSettingsUrl = pathToFileURL(path.join(path.dirname(resolvedApplicationEntry), 'settings.html')).href;
+const state = {
+  dialogs: [], keys: [], imagePath: null, exportPath: null, applicationEntry,
+  settingsExpectedUrl, resolvedApplicationEntry, resolvedSettingsUrl, ipcStateRequests: [], preloadErrors: [],
+};
 globalThis.__ovjSmoke = state;
+// Observe the real handler's authorization inputs without changing its result.
+const nativeHandle = ipcMain.handle.bind(ipcMain);
+ipcMain.handle = (channel, listener) => nativeHandle(channel, (event, ...args) => {
+  if (channel === 'ovj:state') {
+    const settings = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('/settings.html'));
+    state.ipcStateRequests.push({
+      senderIsSettings: event.sender === settings?.webContents,
+      frameIsMain: event.senderFrame === settings?.webContents.mainFrame,
+      senderUrl: event.senderFrame?.url,
+      mainFrameUrl: settings?.webContents.mainFrame.url,
+      urlMatchesExpected: event.senderFrame?.url === settingsExpectedUrl,
+      resolvedSettingsUrl,
+    });
+  }
+  return listener(event, ...args);
+});
 app.on('web-contents-created', (_event, contents) => {
   contents.on('before-input-event', (_event, input) => state.keys.push(input));
+  contents.on('preload-error', (_event, preloadPath, error) => {
+    state.preloadErrors.push({ preloadPath, error: String(error?.stack || error) });
+  });
 });
 dialog.showMessageBox = async (_window, options) => {
   state.dialogs.push({ title: options.title, message: options.message, detail: options.detail, buttons: options.buttons });

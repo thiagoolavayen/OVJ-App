@@ -66,6 +66,7 @@ async function openSettings(application, game, pattern = 'configuraci[oó]n') {
   const profile = path.join(temporary, 'profile');
   fs.mkdirSync(profile);
   let application;
+  let settings;
   try {
     const archive = await createArchive(root, temporary);
     const args = [path.join(root, 'test', 'fixtures', 'smoke-entry.cjs')];
@@ -96,7 +97,7 @@ async function openSettings(application, game, pattern = 'configuraci[oó]n') {
     assert.ok(runtime.menuLabels.length > 0, 'Debe existir un menú nativo visible.');
     assert.ok(runtime.entry.startsWith(archive + path.sep), 'El código ejecutado debe provenir del ASAR.');
 
-    let settings = await openSettings(application, game, 'pelota');
+    settings = await openSettings(application, game, 'pelota');
     assert.ok(settings.url().includes('/app.asar/src/settings.html'), 'Ajustes deben abrirse desde el ASAR.');
     await expect(settings.locator('#ball-title')).toBeFocused();
     await expect(settings.locator('#competitive-mode')).toBeChecked();
@@ -227,10 +228,36 @@ async function openSettings(application, game, pattern = 'configuraci[oó]n') {
     await settingsClosed;
     console.log('PASS: app.asar real; menú visible, navegación y botones reales, aislamiento, preload/IPC, PNG/WebP, captura/exportación CSV/JSON y persistencia entre procesos. HaxBall es una fixture offline; no valida Windows, Discord ni una sala real.');
   } catch (error) {
+    if (settings && !settings.isClosed()) console.error('Settings diagnostics:', await settings.evaluate(async () => {
+      let apiResult;
+      try {
+        const state = await window.ovj?.getState();
+        if (state) {
+          const { ballPreview, brandLogo, ...details } = state;
+          apiResult = { ...details, hasBallPreview: Boolean(ballPreview), hasBrandLogo: Boolean(brandLogo) };
+        }
+      }
+      catch (failure) { apiResult = { rejection: String(failure?.stack || failure) }; }
+      return {
+        url: location.href, bridgeType: typeof window.ovj,
+        error: document.getElementById('error')?.textContent,
+        errorHidden: document.getElementById('error')?.hidden,
+        mode: document.getElementById('mode-status')?.textContent,
+        runtime: document.getElementById('runtime')?.textContent,
+        apiResult,
+      };
+    }).catch(failure => ({ diagnosticFailure: String(failure) })));
     if (application) console.error(await application.evaluate(({ BrowserWindow, Menu }) => ({
-      windows: BrowserWindow.getAllWindows().map(window => ({ title: window.getTitle(), url: window.webContents.getURL() })),
+      windows: BrowserWindow.getAllWindows().map(window => ({
+        title: window.getTitle(), url: window.webContents.getURL(),
+        mainFrameUrl: window.webContents.mainFrame.url,
+        preload: window.webContents.getLastWebPreferences().preload,
+      })),
       menuLabels: Menu.getApplicationMenu()?.items.map(item => item.label),
       dialogs: globalThis.__ovjSmoke?.dialogs,
+      settingsExpectedUrl: globalThis.__ovjSmoke?.settingsExpectedUrl,
+      ipcStateRequests: globalThis.__ovjSmoke?.ipcStateRequests.slice(-10),
+      preloadErrors: globalThis.__ovjSmoke?.preloadErrors,
     })).catch(() => null));
     throw error;
   } finally {

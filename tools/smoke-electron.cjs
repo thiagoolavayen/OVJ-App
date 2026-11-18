@@ -62,7 +62,7 @@ async function openSettings(application, game, pattern = 'configuraci[oó]n') {
 
 (async () => {
   const root = path.resolve(__dirname, '..');
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'ovj-packaged-smoke-'));
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'ovj~packaged-smoke-'));
   const profile = path.join(temporary, 'profile');
   fs.mkdirSync(profile);
   let application;

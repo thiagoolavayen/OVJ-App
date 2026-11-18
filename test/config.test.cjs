@@ -55,6 +55,25 @@ test('solo el frame local de ajustes puede invocar operaciones privilegiadas', (
   assert.equal(isSettingsSender({ sender: contents, senderFrame: { url: frame.url } }, window, frame.url), false);
 });
 
+test('el IPC acepta la misma ruta local codificada por Node y Chromium en Windows', () => {
+  const expected = 'file:///C:/Users/RUNNER%7E1/OVJ%20App/app.asar/src/settings.html';
+  const frame = { url: 'file:///C:/Users/RUNNER~1/OVJ%20App/app.asar/src/settings.html' };
+  const contents = { mainFrame: frame };
+  const window = { webContents: contents, isDestroyed: () => false };
+  const event = { sender: contents, senderFrame: frame };
+  assert.equal(isSettingsSender(event, window, expected), true);
+  for (const url of [
+    expected + '?other=1', expected + '#other',
+    expected.replace('settings.html', 'other.html'),
+    expected.replace('src/settings.html', 'src%2Fsettings.html'),
+    expected.replace('file:///', 'file://remote/'),
+    'https://www.haxball.com/settings.html', 'invalid',
+  ]) {
+    frame.url = url;
+    assert.equal(isSettingsSender(event, window, expected), false, url);
+  }
+});
+
 test('el diagnóstico rechaza tamaños, intervalos y orden inválidos', () => {
   assert.ok(validateIntervals([[10, 10], [20, 10]]));
   for (const samples of [[[10, -1]], [[10, NaN]], [[20, 10], [10, 10]], [['10', 10]], [[1, 1, 1]]]) assert.equal(validateIntervals(samples), false);

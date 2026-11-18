@@ -26,7 +26,7 @@ async function createArchive(root, directory) {
   }
   const archive = path.join(directory, 'app.asar');
   await asar.createPackage(stage, archive);
-  const files = asar.listPackage(archive);
+  const files = asar.listPackage(archive).map(filename => filename.replace(/\\/g, '/'));
   assert.ok(files.includes('/src/main.cjs'));
   assert.ok(files.includes('/src/settings-preload.cjs'));
   assert.ok(files.every(filename => !filename.startsWith('/test/') && !filename.startsWith('/tools/')));

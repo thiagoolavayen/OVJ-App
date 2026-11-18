@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { ConfigStore, validatePatch } = require('../src/config.cjs');
 const { isGameUrl, isExternalUrl, isSettingsSender, validateIntervals } = require('../src/security.cjs');
 
@@ -47,7 +48,7 @@ test('navegación y enlaces no aceptan protocolos del sistema ni dominios pareci
 });
 
 test('solo el frame local de ajustes puede invocar operaciones privilegiadas', () => {
-  const frame = { url: 'file:///app/settings.html' };
+  const frame = { url: pathToFileURL(path.join(os.tmpdir(), 'ovj', 'settings.html')).href };
   const contents = { mainFrame: frame };
   const window = { webContents: contents, isDestroyed: () => false };
   assert.ok(isSettingsSender({ sender: contents, senderFrame: frame }, window, frame.url));

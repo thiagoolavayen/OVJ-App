@@ -3,7 +3,7 @@ name: Publish OVJ App download
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/publish-initial.yml', '.github/workflows/windows.yml', 'package.json', 'tools/smoke-electron.cjs']
+    paths: ['.github/workflows/publish-initial.yml', '.github/workflows/windows.yml', 'package.json', 'src/**', 'test/**', 'tools/smoke-electron.cjs']
   workflow_dispatch:
 
 permissions:

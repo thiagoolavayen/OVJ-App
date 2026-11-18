@@ -11,6 +11,7 @@ const { isCandidateUrl, transformGameScript } = require('./ball-adapter.cjs');
 const { BENCHMARK_SOURCE, STOP_BENCHMARK_SOURCE } = require('./benchmark-collector.cjs');
 const { webPDecoderSource } = require('./image-decoder.cjs');
 const { frameThemeSource } = require('./game-theme.cjs');
+const { installAdBlocker, adSlotSource } = require('./ad-blocker.cjs');
 
 app.setName('OVJ App');
 app.enableSandbox();
@@ -40,6 +41,7 @@ let benchmarkGeneration = 0;
 let benchmarkPending = false;
 let failureDialogOpen = false;
 let brandLogoData = null;
+let blockedAdRequests = 0;
 const settingsUrl = pathToFileURL(path.join(__dirname, 'settings.html')).href;
 const gameUrl = 'https://www.haxball.com/play';
 
@@ -66,6 +68,7 @@ function currentState() {
     brandLogo: brandLogoData,
     discordStatus: discord?.detail || 'Integración de Discord iniciándose.',
     ballStatus,
+    adBlocking: { enabled: store.get().adBlockingEnabled, blockedRequests: blockedAdRequests },
     benchmark: { active: benchmarkActive || benchmarkPending, samples: benchmarkSamples.length },
     runtime: {
       appVersion: app.getVersion(), electron: process.versions.electron,
@@ -86,11 +89,12 @@ function reportError(error) {
   notify();
 }
 
-function showSettings() {
+function showSettings(section = 'performance') {
   if (!gameWindow || gameWindow.isDestroyed()) return;
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.show();
     settingsWindow.focus();
+    settingsWindow.webContents.send('ovj:navigate-section', section);
     return;
   }
   settingsWindow = new BrowserWindow({
@@ -111,6 +115,7 @@ function showSettings() {
   settingsWindow.webContents.session.setPermissionCheckHandler(() => false);
   settingsWindow.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   settingsWindow.once('ready-to-show', () => settingsWindow?.show());
+  settingsWindow.webContents.once('did-finish-load', () => settingsWindow?.webContents.send('ovj:navigate-section', section));
   settingsWindow.on('closed', () => {
     settingsWindow = null;
     if (!quitting && gameWindow && !gameWindow.isDestroyed()) gameWindow.focus();
@@ -140,19 +145,21 @@ async function updateSkinInGame() {
   if (!data && !skinAppliedToLoad) {
     reloadRequired = false;
     ballStatus = store.get().competitiveMode
-      ? 'Modo competitivo: juego original; las imágenes personales están desactivadas.'
+      ? 'Modo torneo: pelota original; las imágenes personales están desactivadas.'
       : 'Diseño original de HaxBall.';
     notify();
     return;
   }
   let found = false;
+  let decoded = false;
   for (const frame of gameWindow.webContents.mainFrame.framesInSubtree) {
     if (!isGameUrl(frame.url)) continue;
     try {
       const result = await frame.executeJavaScript(
-        `typeof window.__ovjSetBallSkin === 'function' ? (window.__ovjSetBallSkin(${JSON.stringify(data)}), true) : false`, false
+        `typeof window.__ovjSetBallSkin === 'function' ? window.__ovjSetBallSkin(${JSON.stringify(data)}).then(ok => ({ available: true, decoded: ok === true })) : null`, false
       );
-      found ||= result === true;
+      found ||= result?.available === true;
+      decoded ||= result?.decoded === true;
     } catch { /* El frame puede cambiar al abandonar una sala. */ }
   }
   if (data && !found) {
@@ -161,17 +168,21 @@ async function updateSkinInGame() {
   } else if (!data) {
     reloadRequired = skinAppliedToLoad;
     ballStatus = store.get().competitiveMode
-      ? (skinAppliedToLoad ? 'Imagen desactivada. Recargá para retirar el adaptador y usar el juego íntegro en modo competitivo.' : 'Modo competitivo: juego original; las imágenes personales están desactivadas.')
+      ? (skinAppliedToLoad ? 'Imagen desactivada. Recargá para retirar el adaptador y usar la pelota original en modo torneo.' : 'Modo torneo: pelota original; las imágenes personales están desactivadas.')
       : 'Diseño original de HaxBall.';
   } else {
     reloadRequired = false;
-    ballStatus = 'Adaptador compatible cargado. El diseño se muestra cuando la imagen termina de decodificarse.';
+    ballStatus = decoded ? 'Diseño aplicado a la pelota. Solo visible en tu cliente.' : 'No se pudo decodificar el diseño. Se conserva la pelota original.';
   }
   notify();
 }
 
 function installSessionPolicies() {
   const session = gameSession;
+  installAdBlocker(session, {
+    isEnabled: () => store.get().adBlockingEnabled,
+    onBlocked: () => { blockedAdRequests = Math.min(Number.MAX_SAFE_INTEGER, blockedAdRequests + 1); notify(); }
+  });
   session.setPermissionCheckHandler((contents, permission, origin) =>
     contents === gameWindow?.webContents && permission === 'fullscreen' && isGameUrl(origin));
   session.setPermissionRequestHandler((contents, permission, callback, details) => {
@@ -193,6 +204,41 @@ function installSessionPolicies() {
     });
   });
   configureSkinProtocol();
+}
+
+function updateAdVisibility() {
+  if (!gameWindow || gameWindow.isDestroyed()) return;
+  for (const frame of gameWindow.webContents.mainFrame.framesInSubtree) {
+    if (isGameUrl(frame.url)) frame.executeJavaScript(adSlotSource(store.get().adBlockingEnabled), false).catch(() => {});
+  }
+}
+
+function installGameMenu() {
+  if (!gameWindow || gameWindow.isDestroyed()) return;
+  const open = section => () => showSettings(section);
+  const menu = Menu.buildFromTemplate([
+    { label: 'OVJ App', submenu: [
+      { label: 'Configuración…', accelerator: 'F10', click: open('performance') },
+      { label: 'Pantalla completa', accelerator: 'F11', click: () => gameWindow.setFullScreen(!gameWindow.isFullScreen()) },
+      { label: 'Recargar HaxBall…', accelerator: 'Ctrl+Shift+R', click: () => confirmReload().catch(reportError) },
+      { type: 'separator' },
+      { label: 'Salir', role: 'quit' }
+    ] },
+    { label: 'Pelota', submenu: [{ label: 'Personalizar pelota…', click: open('ball') }] },
+    { label: 'Discord', submenu: [{ label: 'Configurar actividad…', click: open('discord') }] },
+    { label: 'Diagnóstico', submenu: [{ label: 'Capturar o exportar diagnóstico…', click: open('diagnostics') }] },
+    { label: 'Publicidad', submenu: [{
+      label: 'Bloquear anuncios', type: 'checkbox', checked: store.get().adBlockingEnabled,
+      click: item => {
+        try { store.save({ adBlockingEnabled: item.checked }); updateAdVisibility(); notify(); }
+        catch (error) { reportError(error); installGameMenu(); }
+      }
+    }] }
+  ]);
+  Menu.setApplicationMenu(menu);
+  gameWindow.setMenu(menu);
+  gameWindow.setMenuBarVisibility(true);
+  settingsWindow?.setMenu(null);
 }
 
 function configureSkinProtocol() {
@@ -261,7 +307,7 @@ function createGameWindow() {
     width: 1280, height: 800, minWidth: 800, minHeight: 600,
     backgroundColor: '#080808', title: 'OVJ App · Ovejeros FC',
     icon: appIcon(), fullscreen: store.get().fullscreen,
-    autoHideMenuBar: true, show: false,
+    autoHideMenuBar: false, show: false,
     webPreferences: {
       partition: 'persist:ovj-game',
       nodeIntegration: false, nodeIntegrationInSubFrames: false, contextIsolation: true,
@@ -270,7 +316,7 @@ function createGameWindow() {
       backgroundThrottling: true
     }
   });
-  gameWindow.setMenu(null);
+  installGameMenu();
   gameSession = gameWindow.webContents.session;
   installSessionPolicies();
   const contents = gameWindow.webContents;
@@ -292,7 +338,11 @@ function createGameWindow() {
   contents.on('did-frame-finish-load', (_event, _mainFrame, processId, routingId) => {
     try {
       const frame = webFrameMain.fromId(processId, routingId);
-      if (frame && isGameUrl(frame.url)) frame.executeJavaScript(frameThemeSource(), false).catch(() => {});
+      if (frame && isGameUrl(frame.url)) {
+        frame.executeJavaScript(frameThemeSource(), false).catch(() => {});
+        frame.executeJavaScript(adSlotSource(store.get().adBlockingEnabled), false).catch(() => {});
+        if (skinAppliedToLoad) updateSkinInGame().catch(reportError);
+      }
     } catch { /* Un cambio de documento puede destruir el frame entre eventos. */ }
   });
   contents.on('did-start-navigation', (_event, _url, _inPlace, isMainFrame) => {
@@ -343,7 +393,7 @@ async function confirmReload() {
   });
   if (result.response === 1) {
     settingsWindow?.close();
-    gameWindow?.webContents.reload();
+    gameWindow?.webContents.reloadIgnoringCache();
   }
 }
 
@@ -369,6 +419,8 @@ function registerIpc() {
     store.save(patch);
     const settings = store.get();
     if (settings.competitiveMode) finishBenchmark();
+    updateAdVisibility();
+    installGameMenu();
     presence.configure({ enabled: settings.discordEnabled, clientId: settings.discordClientId, assetKey: settings.discordAssetKey });
     await updateSkinInGame();
     notify();
@@ -390,10 +442,23 @@ function registerIpc() {
     if (image.isEmpty() || size.width < 1 || size.height < 1 || size.width > 4096 || size.height > 4096) throw new Error('Imagen inválida o mayor que 4096 × 4096 píxeles.');
     const factor = Math.min(1, 256 / size.width, 256 / size.height);
     const optimized = image.resize({ width: Math.max(1, Math.round(size.width * factor)), height: Math.max(1, Math.round(size.height * factor)), quality: 'best' });
+    let reloadNow = false;
+    if (store.get().competitiveMode || !skinAppliedToLoad) {
+      const confirmation = await dialog.showMessageBox(settingsWindow || gameWindow, {
+        type: 'question', title: 'Activar diseño de pelota', message: '¿Usar este diseño de pelota?',
+        detail: (store.get().competitiveMode ? 'Se desactivará el modo torneo para usar tu imagen. ' : '') +
+          'La primera activación requiere recargar HaxBall y abandonar la sala actual. Podés guardar el diseño para aplicarlo después.',
+        buttons: ['Cancelar', 'Guardar para después', 'Aplicar y recargar'], defaultId: 1, cancelId: 0
+      });
+      if (confirmation.response === 0) return;
+      reloadNow = confirmation.response === 2;
+    }
     store.setSkin(optimized.toPNG(), path.basename(filename));
+    if (store.get().competitiveMode) store.save({ competitiveMode: false });
     cachedSkinDataUrl = store.skinDataUrl();
     await updateSkinInGame();
     notify();
+    if (reloadNow) { settingsWindow?.close(); gameWindow?.webContents.reloadIgnoringCache(); }
   });
   handle('ovj:remove-ball', async () => { store.removeSkin(); cachedSkinDataUrl = null; await updateSkinInGame(); notify(); });
   handle('ovj:fullscreen', () => { gameWindow.setFullScreen(!gameWindow.isFullScreen()); });
@@ -406,7 +471,7 @@ function registerIpc() {
     if (result.response === 1) { app.relaunch(); app.quit(); }
   });
   handle('ovj:benchmark-start', () => {
-    if (store.get().competitiveMode) throw new Error('Desactivá el modo competitivo para tomar una captura de diagnóstico.');
+    if (store.get().competitiveMode) throw new Error('Desactivá el modo torneo para tomar una captura de diagnóstico.');
     if (benchmarkActive || benchmarkPending) return;
     const frames = gameWindow.webContents.mainFrame.framesInSubtree.filter(frame => isGameUrl(frame.url));
     benchmarkFrame = frames.find(frame => /\/g\/game\.html(?:[?#]|$)/.test(frame.url));

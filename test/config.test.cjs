@@ -11,8 +11,10 @@ test('la configuración sobrevive reinicios y rechaza opciones peligrosas sin mo
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ovj-config-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const store = new ConfigStore(dir);
-  store.save({ fullscreen: true, discordClientId: '123456789012345678' });
+  assert.equal(store.get().adBlockingEnabled, true);
+  store.save({ fullscreen: true, discordClientId: '123456789012345678', adBlockingEnabled: false });
   assert.equal(new ConfigStore(dir).get().fullscreen, true);
+  assert.equal(new ConfigStore(dir).get().adBlockingEnabled, false);
   assert.throws(() => store.save({ fullscreen: false, nodeIntegration: true }), /desconocida/);
   assert.equal(new ConfigStore(dir).get().fullscreen, true);
   assert.throws(() => validatePatch({ hardwareAcceleration: 'false' }));

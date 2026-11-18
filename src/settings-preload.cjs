@@ -21,4 +21,12 @@ contextBridge.exposeInMainWorld('ovj', Object.freeze({
     ipcRenderer.on('ovj:state-changed', receive);
     return () => ipcRenderer.removeListener('ovj:state-changed', receive);
   },
+  onNavigateSection: (listener) => {
+    if (typeof listener !== 'function') throw new TypeError('Se esperaba una función.');
+    const receive = (_event, section) => {
+      if (['performance', 'ball', 'discord', 'diagnostics'].includes(section)) listener(section);
+    };
+    ipcRenderer.on('ovj:navigate-section', receive);
+    return () => ipcRenderer.removeListener('ovj:navigate-section', receive);
+  },
 }));

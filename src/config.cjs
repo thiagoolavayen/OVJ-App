@@ -8,13 +8,14 @@ const DEFAULTS = Object.freeze({
   hardwareAcceleration: true,
   fullscreen: false,
   competitiveMode: true,
+  adBlockingEnabled: true,
   discordEnabled: true,
   discordClientId: '',
   discordAssetKey: 'ovj_logo',
   ballEnabled: false,
   ballSkinName: ''
 });
-const BOOLEAN_KEYS = ['hardwareAcceleration', 'fullscreen', 'competitiveMode', 'discordEnabled', 'ballEnabled'];
+const BOOLEAN_KEYS = ['hardwareAcceleration', 'fullscreen', 'competitiveMode', 'adBlockingEnabled', 'discordEnabled', 'ballEnabled'];
 
 function validatePatch(patch) {
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new Error('Configuración inválida.');

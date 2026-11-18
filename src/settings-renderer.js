@@ -8,6 +8,13 @@
   const pendingButtons = new Set();
   let currentState = null;
   let localError = '';
+  const sectionNames = new Set(['performance', 'ball', 'discord', 'diagnostics']);
+
+  function navigateSection(section) {
+    if (!sectionNames.has(section)) return;
+    $(`${section}-section`).scrollIntoView({ block: 'start' });
+    $(`${section}-title`).focus({ preventScroll: true });
+  }
 
   function validDiscordId(value) {
     return value === '' || (/^[1-9]\d{16,19}$/.test(value) && BigInt(value) <= 18446744073709551615n);
@@ -35,6 +42,9 @@
     }
     currentState = state;
     const settings = state.settings;
+    $('mode-status').textContent = settings.competitiveMode
+      ? 'Modo torneo activo: pelota original y capturas desactivadas. Podés cambiarlo en Juego.'
+      : 'Modo personal activo: podés usar tu pelota y capturar un diagnóstico.';
     const hasBrandLogo = typeof state.brandLogo === 'string' && /^data:image\/png;base64,/.test(state.brandLogo);
     $('brand-logo').hidden = !hasBrandLogo;
     if (hasBrandLogo) $('brand-logo').src = state.brandLogo;
@@ -43,6 +53,7 @@
     if (!dirtyForms.has('performance-form')) {
       $('competitive-mode').checked = Boolean(settings.competitiveMode);
       $('hardware-acceleration').checked = Boolean(settings.hardwareAcceleration);
+      $('ad-blocking-enabled').checked = Boolean(settings.adBlockingEnabled);
     }
     if (!dirtyForms.has('discord-form')) {
       $('discord-enabled').checked = Boolean(settings.discordEnabled);
@@ -61,11 +72,15 @@
     $('remove-ball').disabled = !hasBall;
     $('ball-enabled').disabled = Boolean(settings.competitiveMode) || !hasBall;
     $('save-ball').disabled = Boolean(settings.competitiveMode) || !hasBall;
+    $('ball-mode-settings').hidden = !settings.competitiveMode;
     $('ball-mode-note').textContent = settings.competitiveMode
-      ? 'El modo competitivo mantiene la pelota original. Desactivalo y guardá las preferencias para usar tu diseño.'
+      ? 'Elegir una imagen te permite desactivar el modo torneo y activar tu diseño.'
       : hasBall ? 'Se aplica al cargar una versión compatible de HaxBall.' : 'Primero elegí una imagen.';
     $('ball-status').textContent = state.ballStatus || 'Diseño desactivado.';
     $('discord-status').textContent = state.discordStatus || 'Discord desconectado.';
+    $('ad-status').textContent = settings.adBlockingEnabled
+      ? `Activo · ${Number(state.adBlocking?.blockedRequests || 0)} solicitudes publicitarias bloqueadas en esta sesión.`
+      : 'Desactivado. Podés activarlo aquí o desde el menú Publicidad.';
 
     $('fullscreen').textContent = `${settings.fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'} · F11`;
     $('restart-notice').hidden = !state.restartRequired;
@@ -78,8 +93,9 @@
     $('benchmark-start').disabled = Boolean(settings.competitiveMode) || Boolean(benchmark.active);
     $('benchmark-stop').disabled = !benchmark.active;
     $('export-diagnostics').disabled = Boolean(benchmark.active);
+    $('benchmark-mode-settings').hidden = !settings.competitiveMode;
     $('benchmark-note').textContent = settings.competitiveMode
-      ? 'Desactivá el modo competitivo y guardá las preferencias para iniciar una captura.'
+      ? 'El modo torneo impide iniciar capturas. Cambiá el modo de juego y guardá para habilitarlas.'
       : 'Captura de 60 segundos con parada automática. Usá las mismas condiciones al comparar clientes.';
 
     const runtime = state.runtime || {};
@@ -136,6 +152,15 @@
     }
   }
 
+  for (const button of document.querySelectorAll('[data-section]')) {
+    button.addEventListener('click', () => navigateSection(button.dataset.section));
+  }
+
+  if (!api) {
+    showError('La configuración debe abrirse desde OVJ App.');
+    return;
+  }
+
   for (const id of ['performance-form', 'ball-form', 'discord-form']) {
     const markDirty = () => {
       dirtyForms.add(id);
@@ -153,6 +178,7 @@
     void act(event.submitter, () => api.saveSettings({
       competitiveMode: $('competitive-mode').checked,
       hardwareAcceleration: $('hardware-acceleration').checked,
+      adBlockingEnabled: $('ad-blocking-enabled').checked,
     }), { form: 'performance-form', success: 'Preferencias guardadas.' });
   });
   $('ball-form').addEventListener('submit', (event) => {
@@ -204,11 +230,9 @@
     }
   });
 
-  if (!api) {
-    showError('La configuración debe abrirse desde OVJ App.');
-    return;
-  }
   const unsubscribe = api.onState(render);
   window.addEventListener('unload', unsubscribe, { once: true });
+  const unsubscribeNavigation = api.onNavigateSection(navigateSection);
+  window.addEventListener('unload', unsubscribeNavigation, { once: true });
   void act(null, () => api.getState());
 })();

@@ -17,7 +17,11 @@ body { margin: 0 auto; max-width: 900px; padding: 28px 32px 20px; }
 .eyebrow { color: var(--accent); margin: 0 0 1px; font-size: 10px; font-weight: 650; letter-spacing: .19em; }
 h1 { margin: 0; font-size: 36px; line-height: 1.15; font-weight: 750; letter-spacing: -.045em; }
 .subtitle { margin: 3px 0 0; color: var(--muted); }
+.section-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.section-nav button { flex: 1 1 auto; }
+.mode-status { color: #dddddd; margin: 0 0 18px; font-size: 12px; }
 section { padding: 21px 22px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 4px; background: #111111; }
+section { scroll-margin-top: 16px; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 15px; }
 h2 { font-size: 16px; font-weight: 650; margin: 0; }
 p { margin: 10px 0; }

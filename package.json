@@ -1,6 +1,6 @@
 {
   "name": "ovj-app",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Cliente de escritorio de HaxBall para Ovejeros FC, con configuración conservadora y mediciones reproducibles.",
   "author": "Ovejeros FC",

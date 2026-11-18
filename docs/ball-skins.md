@@ -1,8 +1,10 @@
 # Diseños locales de pelota
 
-Podés importar una imagen desde los ajustes de OVJ App. Se recorta al centro, como un círculo, dentro del radio que HaxBall ya dibuja. El diseño solo aparece en tu equipo. Los demás jugadores siguen viendo la pelota de su cliente.
+Podés importar una imagen desde **Pelota → Personalizar pelota…**, o desde la sección Pelota de los ajustes con F10. Se recorta al centro, como un círculo, dentro del radio que HaxBall ya dibuja. El diseño solo aparece en tu equipo. Los demás jugadores siguen viendo la pelota de su cliente.
 
-El ajuste viene desactivado. El modo competitivo lo desactiva. Para volver a la pelota oficial, desactivá el diseño y recargá HaxBall cuando corresponda. No cambiés este ajuste durante un partido sin tener en cuenta que recargar interrumpe la sesión.
+El ajuste viene desactivado y el **Modo torneo (pelota original)** mantiene el dibujo oficial. Al elegir una imagen válida, el diálogo de activación permite desactivar ese modo y seleccionar **Guardar para después** o **Aplicar y recargar**. La segunda opción abandona la sala actual; la primera guarda el diseño y muestra un aviso para recargar más tarde. Si el adaptador ya está cargado, una nueva imagen puede aplicarse sin salir de la sala.
+
+Para volver a la pelota oficial, desactivá el diseño o activá el modo torneo. La imagen se retira inmediatamente; si el adaptador estaba cargado, recargá cuando puedas para retirar también su código. Las recargas solicitadas desde OVJ omiten la caché para evitar reutilizar un script anterior al cambio de diseño. El estado de la imagen solo declara que está aplicada cuando el navegador confirma su decodificación.
 
 La imagen se transforma en un PNG estático y acotado. No se ejecuta código de imágenes, no se cargan URLs externas y no se usan diseños animados. El adaptador admite únicamente PNG en una URL de datos, de hasta 1 MiB de texto y dimensiones de hasta 1024×1024; la importación de OVJ usa una imagen menor para evitar trabajo innecesario al dibujar.
 
@@ -24,7 +26,7 @@ No se modifica la simulación, las físicas, la velocidad, los paquetes, la sinc
 
 Si cambia la ruta, el hash o la estructura esperada del renderizador, OVJ conserva el script original y no instala el adaptador. Será necesario revisar y validar una nueva compilación para volver a disponer del diseño. No hay compatibilidad universal garantizada con futuras versiones de HaxBall.
 
-La posibilidad de usar un diseño local en partidos oficiales depende del reglamento de cada competición. El modo competitivo de OVJ usa la pelota oficial.
+La posibilidad de usar un diseño local en partidos oficiales depende del reglamento de cada competición. El modo torneo de OVJ usa la pelota oficial y no atribuye una mejora de rendimiento a ese modo.
 
 ## API interna del módulo
 

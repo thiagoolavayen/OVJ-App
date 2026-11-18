@@ -24,9 +24,13 @@ jobs:
       - name: Verify application and branding
         run: |
           npm test
+          if ($LASTEXITCODE -ne 0) { throw "Component tests failed" }
           npm run check
+          if ($LASTEXITCODE -ne 0) { throw "Syntax checks failed" }
           npm run test:electron
+          if ($LASTEXITCODE -ne 0) { throw "Packaged application smoke test failed" }
           node tools/set-branding.cjs --check
+          if ($LASTEXITCODE -ne 0) { throw "Original branding check failed" }
       - name: Build installer and portable app
         run: |
           npm run dist:win:preview -- --installer

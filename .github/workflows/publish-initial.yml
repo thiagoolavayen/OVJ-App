@@ -1,9 +1,9 @@
-name: Publish OVJ App 0.1.2 download
+name: Publish OVJ App download
 
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/publish-initial.yml']
+    paths: ['.github/workflows/publish-initial.yml', 'package.json']
   workflow_dispatch:
 
 permissions:
@@ -18,6 +18,14 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
+      - uses: actions/checkout@v4
+      - name: Read app version
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
       - name: Wait for the verified Windows build
         id: source
         shell: bash
@@ -41,15 +49,16 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-          import hashlib, zipfile
+          import hashlib, zipfile, os
           folder = Path('binaries')
-          setup = folder / 'OVJ-App-0.1.2-x64-Setup-Preview.exe'
-          portable = folder / 'OVJ-App-0.1.2-x64-Portable-Preview.exe'
+          version = os.environ['APP_VERSION']
+          setup = folder / f'OVJ-App-{version}-x64-Setup-Preview.exe'
+          portable = folder / f'OVJ-App-{version}-x64-Portable-Preview.exe'
           assert setup.is_file() and portable.is_file()
-          archive = folder / 'OVJ-App-0.1.2-Instalador-Windows.zip'
+          archive = folder / f'OVJ-App-{version}-Instalador-Windows.zip'
           with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_STORED) as z:
               z.write(setup, setup.name)
-              z.writestr('COMO-INSTALAR.txt', 'OVJ APP - OVEJEROS FC\n\n1. Extrae este ZIP.\n2. Abre el archivo Setup-Preview.exe.\n3. Sigue el asistente de instalacion.\n\nWindows 10/11 de 64 bits. No requiere Node.js.\nF10: ajustes. F11: pantalla completa.\n\nCompilacion preliminar sin firma. Las pruebas automatizadas no sustituyen una partida real ni benchmarks de latencia.\n')
+              z.writestr('COMO-INSTALAR.txt', 'OVJ APP - OVEJEROS FC\n\n1. Extrae este ZIP.\n2. Abre el archivo Setup-Preview.exe.\n3. Sigue el asistente de instalacion.\n\nWindows 10/11 de 64 bits. No requiere Node.js.\nMenu superior: configuracion, pelota, Discord y diagnostico.\nF10: ajustes. F11: pantalla completa.\nPublicidad bloqueada por defecto.\n\nCompilacion preliminar sin firma. Las pruebas automatizadas no sustituyen una partida real ni benchmarks de latencia.\n')
           with zipfile.ZipFile(archive) as z:
               assert z.testzip() is None
               assert hashlib.sha256(z.read(setup.name)).digest() == hashlib.sha256(setup.read_bytes()).digest()
@@ -58,10 +67,10 @@ jobs:
       - name: Publish the downloadable files
         shell: bash
         run: |
-          draft=$(gh release view v0.1.2 --json isDraft --jq .isDraft)
+          draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
           if [ "$draft" != "true" ]; then
             echo 'The release is already published; existing assets will stay unchanged.'
             exit 0
           fi
-          gh release upload v0.1.2 binaries/OVJ-App-0.1.2-Instalador-Windows.zip binaries/OVJ-App-0.1.2-x64-Portable-Preview.exe binaries/SHA256SUMS.txt
-          gh release edit v0.1.2 --draft=false --prerelease --target "${{ github.sha }}"
+          gh release upload "$RELEASE_TAG" "binaries/OVJ-App-$APP_VERSION-Instalador-Windows.zip" "binaries/OVJ-App-$APP_VERSION-x64-Portable-Preview.exe" binaries/SHA256SUMS.txt
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --target "${{ github.sha }}"
